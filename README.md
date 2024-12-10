@@ -56,6 +56,11 @@ Installing a virtual environment (Windows)
 ```bash
   python -m venv ./venv
 ```
+Activating the virtual environment
+
+```bash
+  ./venv/Scripts/activate
+```
 
 To install the necessary libraries, type in the console
 
