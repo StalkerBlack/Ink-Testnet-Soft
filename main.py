@@ -8,6 +8,7 @@ from questionary import select, Choice
 from utils.core import *
 from generall_settings import *
 from utils.worker import Worker
+from utils.extra import Extra
 from utils.core.network import Sepolia, Ink_Sepolia
 from data.config import TITLE
 
@@ -73,6 +74,8 @@ class Runner:
 
         try:
             worker = Worker(client=client)
+            extra = Extra(client=client)
+
             action_map = {
                 1: worker.bridge_sepolia_to_ink,
                 2: worker.bridge_ink_to_sepolia,
@@ -80,7 +83,8 @@ class Runner:
                 4: worker.verif_contract_erc_721,
                 5: worker.set_greeting,
                 6: worker.dicrod_feedback,
-                7: worker.gm_gn_message
+                7: worker.gm_gn_message,
+                8: extra.register_domen
             }
 
             task_func = action_map.get(action)
@@ -195,6 +199,7 @@ def main():
                         Choice(" 5️⃣  Changing the greeting on a smart contract", 5),
                         Choice(" 🍀  Sending feedback to Discord (optional)", 6),
                         Choice(" 🍀  Send a message 'gm' or 'gn' (optional)", 7),
+                        Choice(" 🍀  Registration of domain name (optional)", 8),
                     ],
                     qmark="🤖",
                     pointer="👉",
