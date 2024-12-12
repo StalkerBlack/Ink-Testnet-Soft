@@ -112,12 +112,18 @@ class Worker():
             with open(file, 'r') as f:
                 progress = json.load(f)
                 if not isinstance(progress, dict):
-                    logger.error(f"Incorrect data format in {file}. Expected dictionar")
+                    logger.error(f"Incorrect data format in {file}. Expected dictionary.")
                     return {}
+                
+                for key, value in progress.items():
+                    if not isinstance(value, (dict, bool)):
+                        logger.error(f"Unexpected data type for key {key}: {type(value)}")
+                
                 return progress
         except (json.JSONDecodeError, OSError) as e:
             logger.error(f"File read error {file}: {e}")
             return {}
+
         
     def check_last_request(self, address, file):
         progress = self.load_progress(file)
@@ -170,7 +176,7 @@ class Worker():
                 f"{self.client.name} | Insufficient {self.client.network.token} "
                 f"for the swap, in network: {self.client.network.name} | Address: {self.client.address}"
             )
-            return False
+            return
 
         elif normalized_balance > 1:
             normalized_value = round(1 * random_percent, random.randint(*rounding_levels))
@@ -248,8 +254,7 @@ class Worker():
             "verificationContract": {
                 contract_address: False
             },
-            "setGreeting": False,
-            "feedBackDiscord": False
+            "setGreeting": False
         }
         self.save_progress(progress, file=self.deploy_erc_721)
 
@@ -451,7 +456,7 @@ class Worker():
                         f'{self.client.name} |Request error: {response.status_code}'
                         f'Check Discrod authorization token !'
                     )
-                    progress[self.client.address] = False
+                    progress[self.client.address] = {}
                     self.save_progress(progress, file=self.gm_check_time)
                     return False
                 
