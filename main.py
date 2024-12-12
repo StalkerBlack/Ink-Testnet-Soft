@@ -84,7 +84,8 @@ class Runner:
                 5: worker.set_greeting,
                 6: worker.dicrod_feedback,
                 7: worker.gm_gn_message,
-                8: extra.register_domen
+                8: extra.register_domen,
+                9: extra.request_faucet_owlto
             }
 
             task_func = action_map.get(action)
@@ -183,7 +184,7 @@ def main():
             runner = Runner()
             if answer == 'run_all':
                 print()
-                actions_to_perform = [1, 2, 3, 4, 5]
+                actions_to_perform = [1, 2, 3, 4, 5, 9]
                 if SHUFFLE_TASKS:
                     random.shuffle(actions_to_perform)
                 asyncio.run(runner.run(actions_to_perform=actions_to_perform))
@@ -200,6 +201,8 @@ def main():
                         Choice(" 🍀  Sending feedback to Discord (optional)", 6),
                         Choice(" 🍀  Send a message 'gm' or 'gn' (optional)", 7),
                         Choice(" 🍀  Registration of domain name (optional)", 8),
+                        Choice(" 🍀  Faucet $ETH Owlto (optional)", 9),
+
                     ],
                     qmark="🤖",
                     pointer="👉",
