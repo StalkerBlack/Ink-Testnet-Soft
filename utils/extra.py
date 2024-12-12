@@ -2,6 +2,7 @@ import re
 
 from web3 import AsyncWeb3
 from faker import Faker
+from curl_cffi.requests import AsyncSession
 
 from utils.core import*
 from data.config import*
@@ -78,3 +79,38 @@ class Extra:
                 else:
                     raise e
             return
+
+    async def request_faucet_owlto(self):
+        headers = {
+            'origin': 'https://owlto.finance',
+            'referer': 'https://owlto.finance/Faucet/Ink',
+            'user-agent': self.client.get_user_agent(),
+        }
+
+        url = f'https://owlto.finance/faucet_api/v1/ink_faucet/{self.client.address}/claim'
+
+        async with AsyncSession() as session:
+            try:
+                response = await session.post(
+                    url=url, headers=headers, proxy=self.client.proxy_init
+                )
+
+                result = response.json()
+                if result.get("code") == 0:
+                    tx_hash = result.get("data", {}).get("tx_hash")
+                    if tx_hash:
+                        logger.info(f"Tokens successfully requested. Transaction hash: {tx_hash}")
+                        return
+                    else:
+                        logger.error(f"{self.client.name} | Missing transaction hash in success response")
+                        return False
+                elif result.get("code") == 1006:
+                    return False
+                else:
+                    logger.error(f"{self.client.name} | Unknown response: {result}")
+                    return False
+
+            except Exception as e:
+                logger.error(f'{self.client.name} | Ink Sepolia token request error: {e}')
+                return False
+
