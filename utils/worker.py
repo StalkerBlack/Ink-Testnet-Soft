@@ -408,7 +408,7 @@ class Worker():
 
                 if response.status_code != 200:
                     logger.error(
-                        f'{self.client.name} |Request error: {response.status_code}'
+                        f'{self.client.name} |Request error: {response.status_code} '
                         f'Check Discrod authorization token !'
                     )
                     progress[self.client.address] = False
