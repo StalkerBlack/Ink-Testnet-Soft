@@ -44,11 +44,19 @@ class Client():
     @staticmethod
     def get_normalize_error(error: Exception) -> Exception | str:
         try:
-            if error.args and isinstance(error.args[0], dict):
-                error = error.args[0].get('message', error)
-            return error
+            if error.args:
+                first_arg = error.args[0]
+                
+                if isinstance(first_arg, dict):
+                    return first_arg.get('message', str(error))
+                
+                elif isinstance(first_arg, str):
+                    return first_arg
+
+            return str(error)
         except Exception as e:
-            return error
+            return f"Unexpected error: {str(e)}"
+
 
 
     async def change_rpc(self):
@@ -124,52 +132,50 @@ class Client():
             raise BlockchainException(f'{self.get_normalize_error(error)}')
         
     async def send_transaction(self, transaction, need_hash: bool = False, without_gas: bool = False,
-                               poll_latency: int = 10, timeout: int = 360):
+                            poll_latency: int = 10, timeout: int = 360):
         try:
             estimated_gas = await self.w3.eth.estimate_gas(transaction)
             transaction['gas'] = min(int(estimated_gas * 1.25), 10_000_000)
         except Exception as error:
-            raise BlockchainException(f'{self.get_normalize_error(error)}')
+            normalized_error = self.get_normalize_error(error)
+            logger.error(f'Failed to estimate gas: {normalized_error} | {self.address}')
+            return False
 
         try:
-            singed_tx = self.w3.eth.account.sign_transaction(transaction, self.private_key)
-            tx_hash = await self.w3.eth.send_raw_transaction(singed_tx.raw_transaction)
+            signed_tx = self.w3.eth.account.sign_transaction(transaction, self.private_key)
+            tx_hash = await self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
         except Exception as error:
-            if self.get_normalize_error(error) == 'already known':
-                logger.warning(f'RPC received an error, but the tx was sent | {self.address}')
-                return True
-            else:
-                raise BlockchainException(f'{self.get_normalize_error(error)}')
+            normalized_error = self.get_normalize_error(error)
+            logger.error(f'Failed to send transaction: {normalized_error} | {self.address}')
+            return False
 
         try:
             total_time = 0
-            timeout = 1200
-
             while True:
                 try:
-                    receipts = await self.w3.eth.get_transaction_receipt(tx_hash) 
-                    if isinstance(receipts, dict):
-                        status = receipts.get("status")
-                    if isinstance(receipts, AttributeDict):
-                        status = receipts["status"]
+                    receipts = await self.w3.eth.get_transaction_receipt(tx_hash)
+                    status = receipts.get("status") if isinstance(receipts, dict) else receipts["status"]
+                    
                     if status == 1:
-                        logger.success(f'Transaction was successful: {self.network.explorer}/tx/0x{tx_hash.hex()} | {self.address}')
-                        if need_hash:
-                            return tx_hash
-                        return True
+                        logger.success(f'Transaction successful: {self.network.explorer}/tx/{tx_hash.hex()} | {self.address}')
+                        return tx_hash if need_hash else True
                     elif status is None:
                         await asyncio.sleep(poll_latency)
                     else:
-                        return SoftwareException(f'Transaction failed: {self.network.explorer}/tx/0x{tx_hash.hex()}')
+                        logger.error(f'Transaction failed: {self.network.explorer}/tx/{tx_hash.hex()}')
+                        return False
                 except TransactionNotFound:
                     if total_time > timeout:
-                        raise TimeExhausted(f"Transaction is missing from the chain after {timeout} seconds")
+                        logger.error(f'Transaction not found after {timeout} seconds')
+                        return False
                     total_time += poll_latency
                     await asyncio.sleep(poll_latency)
-
                 except Exception as error:
-                    logger.error(f'RPC received an automated response. Error: {error} | {self.address}')
+                    normalized_error = self.get_normalize_error(error)
+                    logger.error(f'Error checking transaction status: {normalized_error} | {self.address}')
                     total_time += poll_latency
                     await asyncio.sleep(poll_latency)
         except Exception as error:
-            raise BlockchainException(f'{self.get_normalize_error(error)}')
+            normalized_error = self.get_normalize_error(error)
+            logger.error(f'Unexpected error during transaction: {normalized_error} | {self.address}')
+            return False
